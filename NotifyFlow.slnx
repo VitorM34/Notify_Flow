@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NotifyFlow.Api/NotifyFlow.Api.csproj" />
+    <Project Path="src/NotifyFlow.Contracts/NotifyFlow.Contracts.csproj" />
+    <Project Path="src/NotifyFlow.Worker/NotifyFlow.Worker.csproj" />
+  </Folder>
+</Solution>
