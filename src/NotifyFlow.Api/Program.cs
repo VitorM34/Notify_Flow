@@ -1,14 +1,16 @@
+using NotifyFlow.Api.Endpoints;
+using NotifyFlow.Api.Messaging;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+builder.Services.AddSingleton<IRabbitMqPublisher>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    return RabbitMqPublisher.CreateAsync(config).GetAwaiter().GetResult();
+});
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
+app.MapEventEndpoints();
 
 app.Run();
