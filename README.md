@@ -1,6 +1,6 @@
 # NotifyFlow
 
-<img src="docs/notifyflow-banner.png" alt="NotifyFlow banner" width="100%" />
+<img src="assets/notifyflow-banner.png" alt="NotifyFlow banner" width="100%" />
 
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![C#](https://img.shields.io/badge/C%23-13-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
