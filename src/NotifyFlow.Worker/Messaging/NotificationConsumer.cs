@@ -39,20 +39,20 @@ public sealed class NotificationConsumer : BackgroundService
             try
             {
                 var json = Encoding.UTF8.GetString(args.Body.Span);
-                var envelope = JsonSerializer.Deserialize<EventEnvelope>(json);
+                var message = JsonSerializer.Deserialize<EventMessage>(json);
 
-                if (envelope is null)
+                if (message is null)
                 {
-                    _logger.LogWarning("Received null envelope, discarding message");
+                    _logger.LogWarning("Received null message, discarding message");
                     await _channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: false);
                     return;
                 }
 
                 _logger.LogInformation(
                     "Message received | EventType: {EventType} | EventId: {EventId}",
-                    envelope.EventType, envelope.EventId);
+                    message.EventType, message.EventId);
 
-                await _dispatcher.DispatchAsync(envelope, stoppingToken);
+                await _dispatcher.DispatchAsync(message, stoppingToken);
 
                 await _channel!.BasicAckAsync(args.DeliveryTag, multiple: false);
             }
