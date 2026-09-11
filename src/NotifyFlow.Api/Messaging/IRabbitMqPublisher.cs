@@ -4,5 +4,5 @@ namespace NotifyFlow.Api.Messaging;
 
 public interface IRabbitMqPublisher
 {
-    Task PublishAsync(EventEnvelope envelope, CancellationToken cancellationToken = default);
+    Task PublishAsync(EventMessage message, CancellationToken cancellationToken = default);
 }
