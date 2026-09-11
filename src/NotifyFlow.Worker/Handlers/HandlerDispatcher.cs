@@ -16,14 +16,14 @@ public sealed class HandlerDispatcher
         _logger = logger;
     }
 
-    public async Task DispatchAsync(EventEnvelope envelope, CancellationToken cancellationToken = default)
+    public async Task DispatchAsync(EventMessage message, CancellationToken cancellationToken = default)
     {
-        if (!_handlers.TryGetValue(envelope.EventType, out var handler))
+        if (!_handlers.TryGetValue(message.EventType, out var handler))
         {
-            _logger.LogWarning("No handler found for event type {EventType}", envelope.EventType);
+            _logger.LogWarning("No handler found for event type {EventType}", message.EventType);
             return;
         }
 
-        await handler.HandleAsync(envelope, cancellationToken);
+        await handler.HandleAsync(message, cancellationToken);
     }
 }
