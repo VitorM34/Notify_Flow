@@ -5,5 +5,5 @@ namespace NotifyFlow.Worker.Handlers;
 public interface INotificationHandler
 {
     string EventType { get; }
-    Task HandleAsync(EventEnvelope envelope, CancellationToken cancellationToken = default);
+    Task HandleAsync(EventMessage message, CancellationToken cancellationToken = default);
 }

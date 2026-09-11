@@ -13,16 +13,16 @@ public static class EventEndpoints
             IRabbitMqPublisher publisher,
             CancellationToken cancellationToken) =>
         {
-            var envelope = new EventEnvelope
+            var message = new EventMessage
             {
                 EventType = "user.registered",
                 Source = "notifyflow.api",
                 Payload = new UserRegisteredEvent(request.UserId, request.Email, request.Name)
             };
 
-            await publisher.PublishAsync(envelope, cancellationToken);
+            await publisher.PublishAsync(message, cancellationToken);
 
-            return Results.Accepted("/events", new { envelope.EventId, envelope.CorrelationId });
+            return Results.Accepted("/events", new { message.EventId, message.CorrelationId });
         });
 
         app.MapPost("/events/password-reset", async (
@@ -30,16 +30,16 @@ public static class EventEndpoints
             IRabbitMqPublisher publisher,
             CancellationToken cancellationToken) =>
         {
-            var envelope = new EventEnvelope
+            var message = new EventMessage
             {
                 EventType = "password.reset.requested",
                 Source = "notifyflow.api",
                 Payload = new PasswordResetRequestedEvent(request.UserId, request.Email, request.ResetToken)
             };
 
-            await publisher.PublishAsync(envelope, cancellationToken);
+            await publisher.PublishAsync(message, cancellationToken);
 
-            return Results.Accepted("/events", new { envelope.EventId, envelope.CorrelationId });
+            return Results.Accepted("/events", new { message.EventId, message.CorrelationId });
         });
 
         app.MapPost("/events/order-confirmed", async (
@@ -47,16 +47,16 @@ public static class EventEndpoints
             IRabbitMqPublisher publisher,
             CancellationToken cancellationToken) =>
         {
-            var envelope = new EventEnvelope
+            var message = new EventMessage
             {
                 EventType = "order.confirmed",
                 Source = "notifyflow.api",
                 Payload = new OrderConfirmedEvent(request.OrderId, request.UserId, request.Email, request.Total)
             };
 
-            await publisher.PublishAsync(envelope, cancellationToken);
+            await publisher.PublishAsync(message, cancellationToken);
 
-            return Results.Accepted("/events", new { envelope.EventId, envelope.CorrelationId });
+            return Results.Accepted("/events", new { message.EventId, message.CorrelationId });
         });
     }
 }

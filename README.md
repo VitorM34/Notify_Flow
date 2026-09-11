@@ -43,16 +43,16 @@ flowchart LR
 
 ## Solution
 
-| Projeto | Tipo | Papel |
-| --- | --- | --- |
-| `NotifyFlow.Contracts` | classlib | Contratos de eventos compartilhados |
-| `NotifyFlow.Api` | webapi (Minimal APIs) | Recebe HTTP e publica no RabbitMQ |
-| `NotifyFlow.Worker` | worker | Consome filas e envia notificações |
+| Projeto                | Tipo                  | Papel                               |
+| ---------------------- | --------------------- | ----------------------------------- |
+| `NotifyFlow.Contracts` | classlib              | Contratos de eventos compartilhados |
+| `NotifyFlow.Api`       | webapi (Minimal APIs) | Recebe HTTP e publica no RabbitMQ   |
+| `NotifyFlow.Worker`    | worker                | Consome filas e envia notificações  |
 
 ```
 NotifyFlow/
 ├── src/
-│   ├── NotifyFlow.Contracts/     # EventEnvelope + eventos de domínio
+│   ├── NotifyFlow.Contracts/     # EventMessage + eventos de domínio
 │   ├── NotifyFlow.Api/           # Minimal APIs + publisher
 │   └── NotifyFlow.Worker/        # BackgroundService + handlers
 ├── infrastructure/
@@ -66,28 +66,28 @@ API e Worker referenciam `Contracts`. Sem MassTransit, MediatR ou AutoMapper —
 
 ## Conceitos em estudo
 
-| Conceito | Onde entra | Status |
-| --- | --- | --- |
-| Exchanges, queues, bindings | API publisher + Worker consumer | 🔲 |
-| ACK / NACK | Worker (`autoAck=false`) | 🔲 |
-| Transactional Outbox | API + PostgreSQL | 🔲 |
-| Retry + exponential backoff | Worker / broker | 🔲 |
-| Dead Letter Queue | RabbitMQ DLX | 🔲 |
-| Idempotência no consumidor | Worker + Redis | 🔲 |
-| `BackgroundService` | `NotificationConsumer` | 🔲 |
+| Conceito                    | Onde entra                      | Status |
+| --------------------------- | ------------------------------- | ------ |
+| Exchanges, queues, bindings | API publisher + Worker consumer | 🔲     |
+| ACK / NACK                  | Worker (`autoAck=false`)        | 🔲     |
+| Transactional Outbox        | API + PostgreSQL                | 🔲     |
+| Retry + exponential backoff | Worker / broker                 | 🔲     |
+| Dead Letter Queue           | RabbitMQ DLX                    | 🔲     |
+| Idempotência no consumidor  | Worker + Redis                  | 🔲     |
+| `BackgroundService`         | `NotificationConsumer`          | 🔲     |
 
 ---
 
 ## Stack
 
-| Camada | Tecnologia |
-| --- | --- |
-| Runtime | .NET 10 / C# |
-| API | ASP.NET Core Minimal APIs |
-| Mensageria | RabbitMQ 4 + `RabbitMQ.Client` 7.x |
-| Persistência (planejado) | PostgreSQL — Outbox |
-| Cache (planejado) | Redis — idempotência |
-| Infra local | Docker Compose |
+| Camada                   | Tecnologia                         |
+| ------------------------ | ---------------------------------- |
+| Runtime                  | .NET 10 / C#                       |
+| API                      | ASP.NET Core Minimal APIs          |
+| Mensageria               | RabbitMQ 4 + `RabbitMQ.Client` 7.x |
+| Persistência (planejado) | PostgreSQL — Outbox                |
+| Cache (planejado)        | Redis — idempotência               |
+| Infra local              | Docker Compose                     |
 
 ---
 
@@ -96,6 +96,7 @@ API e Worker referenciam `Contracts`. Sem MassTransit, MediatR ou AutoMapper —
 Marque conforme o laboratório avançar.
 
 ### Fase 0 — Scaffold
+
 - [x] Solution .NET 10 com 3 projetos
 - [x] Referências Api/Worker → Contracts
 - [x] `RabbitMQ.Client` 7.x
@@ -105,19 +106,22 @@ Marque conforme o laboratório avançar.
 - [ ] Consumer no Worker
 
 ### Fase 1 — Publish / Consume
-- [ ] `EventEnvelope` + eventos de domínio
+
+- [ ] `EventMessage` + eventos de domínio
 - [ ] Endpoints HTTP (`202 Accepted`)
 - [ ] Exchange `direct` + queue durable + binding
 - [ ] Consumer com QoS, ACK e NACK
 - [ ] Provider fake de notificação (console)
 
 ### Fase 2 — Confiabilidade
+
 - [ ] Transactional Outbox (PostgreSQL)
 - [ ] Retry com exponential backoff
 - [ ] Dead Letter Queue
 - [ ] Idempotência no consumidor (Redis)
 
 ### Fase 3 — Observabilidade
+
 - [ ] Logs estruturados de correlação (`EventId` / `CorrelationId`)
 - [ ] Health checks
 - [ ] Métricas básicas do consumer
@@ -141,9 +145,9 @@ Hoje o repositório é scaffold. A API e o Worker sobem, mas ainda não publicam
 docker compose -f infrastructure/docker-compose.yml up -d
 ```
 
-| Serviço | URL |
-| --- | --- |
-| AMQP | `amqp://guest:guest@localhost:5672` |
+| Serviço       | URL                                        |
+| ------------- | ------------------------------------------ |
+| AMQP          | `amqp://guest:guest@localhost:5672`        |
 | Management UI | http://localhost:15672 (`guest` / `guest`) |
 
 ### Projetos
@@ -159,25 +163,25 @@ API local: `http://localhost:5172`
 
 ## Eventos previstos
 
-| EventType | Payload |
-| --- | --- |
-| `user.registered` | `UserId`, `Email`, `Name` |
-| `password.reset.requested` | `UserId`, `Email`, `ResetToken` |
-| `order.confirmed` | `OrderId`, `UserId`, `Email`, `Total` |
+| EventType                  | Payload                               |
+| -------------------------- | ------------------------------------- |
+| `user.registered`          | `UserId`, `Email`, `Name`             |
+| `password.reset.requested` | `UserId`, `Email`, `ResetToken`       |
+| `order.confirmed`          | `OrderId`, `UserId`, `Email`, `Total` |
 
-Envelope comum: `EventId`, `EventType`, `OccurredAt`, `Source`, `CorrelationId`, `Payload`.
+Mensagem de evento comum: `EventId`, `EventType`, `OccurredAt`, `Source`, `CorrelationId`, `Payload`.
 
 ---
 
 ## Topologia RabbitMQ (alvo)
 
-| Recurso | Valor |
-| --- | --- |
-| Exchange | `notifyflow.events` (`direct`, durable) |
-| Queue | `notifyflow.notifications` (durable) |
-| Routing key | `notifications` |
-| Delivery | persistent |
-| Consume | `prefetchCount=1`, `autoAck=false` |
+| Recurso     | Valor                                   |
+| ----------- | --------------------------------------- |
+| Exchange    | `notifyflow.events` (`direct`, durable) |
+| Queue       | `notifyflow.notifications` (durable)    |
+| Routing key | `notifications`                         |
+| Delivery    | persistent                              |
+| Consume     | `prefetchCount=1`, `autoAck=false`      |
 
 ---
 

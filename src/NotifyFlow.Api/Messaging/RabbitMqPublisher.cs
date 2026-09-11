@@ -55,17 +55,17 @@ public sealed class RabbitMqPublisher : IRabbitMqPublisher, IAsyncDisposable
         return new RabbitMqPublisher(connection, channel, exchangeName, configuration["RabbitMq:RoutingKey"]!);
     }
 
-    public async Task PublishAsync(EventEnvelope envelope, CancellationToken cancellationToken = default)
+    public async Task PublishAsync(EventMessage message, CancellationToken cancellationToken = default)
     {
-        var json = JsonSerializer.Serialize(envelope);
+        var json = JsonSerializer.Serialize(message);
         var body = Encoding.UTF8.GetBytes(json);
 
         var properties = new BasicProperties
         {
             DeliveryMode = DeliveryModes.Persistent,
             ContentType = "application/json",
-            MessageId = envelope.EventId.ToString(),
-            CorrelationId = envelope.CorrelationId.ToString()
+            MessageId = message.EventId.ToString(),
+            CorrelationId = message.CorrelationId.ToString()
         };
 
         await _channel.BasicPublishAsync(
