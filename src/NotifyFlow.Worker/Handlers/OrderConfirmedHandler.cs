@@ -19,15 +19,15 @@ public sealed class OrderConfirmedHandler : INotificationHandler
         _logger = logger;
     }
 
-    public async Task HandleAsync(EventEnvelope envelope, CancellationToken cancellationToken = default)
+    public async Task HandleAsync(EventMessage message, CancellationToken cancellationToken = default)
     {
         var payload = JsonSerializer.Deserialize<OrderConfirmedEvent>(
-            JsonSerializer.Serialize(envelope.Payload))
+            JsonSerializer.Serialize(message.Payload))
             ?? throw new InvalidOperationException($"Invalid payload for {EventType}");
 
         _logger.LogInformation(
             "Handling {EventType} | EventId: {EventId} | OrderId: {OrderId}",
-            EventType, envelope.EventId, payload.OrderId);
+            EventType, message.EventId, payload.OrderId);
 
         await _provider.SendAsync(
             recipient: payload.Email,
