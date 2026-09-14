@@ -11,7 +11,7 @@ public sealed class PasswordResetRequestedHandler : INotificationHandler
     private readonly INotificationProvider _provider;
     private readonly ILogger<PasswordResetRequestedHandler> _logger;
 
-    public string EventType => "password.reset.requested";
+    public string EventType => EventTypes.PasswordResetRequested;
 
     public PasswordResetRequestedHandler(INotificationProvider provider, ILogger<PasswordResetRequestedHandler> logger)
     {
