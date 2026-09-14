@@ -15,7 +15,7 @@ public static class EventEndpoints
         {
             var message = new EventMessage
             {
-                EventType = "user.registered",
+                EventType = EventTypes.UserRegistered,
                 Source = "notifyflow.api",
                 Payload = new UserRegisteredEvent(request.UserId, request.Email, request.Name)
             };
@@ -32,7 +32,7 @@ public static class EventEndpoints
         {
             var message = new EventMessage
             {
-                EventType = "password.reset.requested",
+                EventType = EventTypes.PasswordResetRequested,
                 Source = "notifyflow.api",
                 Payload = new PasswordResetRequestedEvent(request.UserId, request.Email, request.ResetToken)
             };
@@ -49,7 +49,7 @@ public static class EventEndpoints
         {
             var message = new EventMessage
             {
-                EventType = "order.confirmed",
+                EventType = EventTypes.OrderConfirmed,
                 Source = "notifyflow.api",
                 Payload = new OrderConfirmedEvent(request.OrderId, request.UserId, request.Email, request.Total)
             };

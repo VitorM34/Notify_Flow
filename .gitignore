@@ -19,7 +19,6 @@
 # Mono auto generated files
 mono_crash.*
 
-#docs
 docs/
 
 # Build results

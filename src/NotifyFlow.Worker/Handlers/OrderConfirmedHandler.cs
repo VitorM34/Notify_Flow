@@ -11,7 +11,7 @@ public sealed class OrderConfirmedHandler : INotificationHandler
     private readonly INotificationProvider _provider;
     private readonly ILogger<OrderConfirmedHandler> _logger;
 
-    public string EventType => "order.confirmed";
+    public string EventType => EventTypes.OrderConfirmed;
 
     public OrderConfirmedHandler(INotificationProvider provider, ILogger<OrderConfirmedHandler> logger)
     {

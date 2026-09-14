@@ -28,6 +28,10 @@ public sealed class NotificationConsumer : BackgroundService
         _logger = logger;
     }
 
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
+
+    private string QueueName => _configuration["RabbitMq:QueueName"]!;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await ConnectAsync(stoppingToken);
@@ -56,6 +60,11 @@ public sealed class NotificationConsumer : BackgroundService
 
                 await _channel!.BasicAckAsync(args.DeliveryTag, multiple: false);
             }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogInformation(
+                    "Processamento interrompido por shutdown do Worker. DeliveryTag: {DeliveryTag}", args.DeliveryTag);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing message. DeliveryTag: {DeliveryTag}", args.DeliveryTag);
@@ -66,7 +75,7 @@ public sealed class NotificationConsumer : BackgroundService
         await _channel!.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false);
 
         await _channel!.BasicConsumeAsync(
-            queue: "notifyflow.notifications",
+            queue: QueueName,
             autoAck: false,
             consumer: consumer,
             cancellationToken: stoppingToken);
@@ -84,10 +93,86 @@ public sealed class NotificationConsumer : BackgroundService
             Password = _configuration["RabbitMq:Password"]!
         };
 
-        _connection = await factory.CreateConnectionAsync(cancellationToken);
-        _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        var attempt = 0;
 
-        _logger.LogInformation("Connected to RabbitMQ");
+        while (true)
+        {
+            try
+            {
+                attempt++;
+
+                _connection = await factory.CreateConnectionAsync(cancellationToken);
+                _channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+
+                await DeclareTopologyAsync(_channel, cancellationToken);
+
+                _logger.LogInformation("Connected to RabbitMQ");
+                return;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Min(Math.Pow(2, attempt), MaxRetryDelay.TotalSeconds));
+
+                _logger.LogError(
+                    ex,
+                    "Falha ao conectar no RabbitMQ (tentativa {Attempt}). Nova tentativa em {Delay}s",
+                    attempt, delay.TotalSeconds);
+
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+    }
+
+    private async Task DeclareTopologyAsync(IChannel channel, CancellationToken cancellationToken)
+    {
+        var exchangeName = _configuration["RabbitMq:ExchangeName"]!;
+        var routingKey = _configuration["RabbitMq:RoutingKey"]!;
+        var deadLetterExchangeName = _configuration["RabbitMq:DeadLetterExchangeName"]!;
+        var deadLetterQueueName = _configuration["RabbitMq:DeadLetterQueueName"]!;
+
+        await channel.ExchangeDeclareAsync(
+            exchange: exchangeName,
+            type: ExchangeType.Direct,
+            durable: true,
+            autoDelete: false,
+            cancellationToken: cancellationToken);
+
+        await channel.ExchangeDeclareAsync(
+            exchange: deadLetterExchangeName,
+            type: ExchangeType.Direct,
+            durable: true,
+            autoDelete: false,
+            cancellationToken: cancellationToken);
+
+        await channel.QueueDeclareAsync(
+            queue: deadLetterQueueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            cancellationToken: cancellationToken);
+
+        await channel.QueueBindAsync(
+            queue: deadLetterQueueName,
+            exchange: deadLetterExchangeName,
+            routingKey: routingKey,
+            cancellationToken: cancellationToken);
+
+        await channel.QueueDeclareAsync(
+            queue: QueueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: new Dictionary<string, object?>
+            {
+                ["x-dead-letter-exchange"] = deadLetterExchangeName
+            },
+            cancellationToken: cancellationToken);
+
+        await channel.QueueBindAsync(
+            queue: QueueName,
+            exchange: exchangeName,
+            routingKey: routingKey,
+            cancellationToken: cancellationToken);
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)

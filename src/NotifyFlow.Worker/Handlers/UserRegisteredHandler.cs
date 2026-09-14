@@ -11,7 +11,7 @@ public sealed class UserRegisteredHandler : INotificationHandler
     private readonly INotificationProvider _provider;
     private readonly ILogger<UserRegisteredHandler> _logger;
 
-    public string EventType => "user.registered";
+    public string EventType => EventTypes.UserRegistered;
 
     public UserRegisteredHandler(INotificationProvider provider, ILogger<UserRegisteredHandler> logger)
     {
