@@ -19,8 +19,11 @@
 # Mono auto generated files
 mono_crash.*
 
-#docs
-docs/
+# docs internos de estudo/acompanhamento (não fazem parte da documentação pública do projeto)
+docs/tasks/
+docs/epics/
+docs/backlog/
+docs/scrum/
 
 # Build results
 [Dd]ebug/
