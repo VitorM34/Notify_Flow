@@ -68,13 +68,15 @@ API e Worker referenciam `Contracts`. Sem MassTransit, MediatR ou AutoMapper —
 
 | Conceito                    | Onde entra                      | Status |
 | --------------------------- | ------------------------------- | ------ |
-| Exchanges, queues, bindings | API publisher + Worker consumer | 🔲     |
-| ACK / NACK                  | Worker (`autoAck=false`)        | 🔲     |
+| Exchanges, queues, bindings | API publisher + Worker consumer | 🟡     |
+| ACK / NACK                  | Worker (`autoAck=false`)        | 🟡     |
 | Transactional Outbox        | API + PostgreSQL                | 🔲     |
 | Retry + exponential backoff | Worker / broker                 | 🔲     |
 | Dead Letter Queue           | RabbitMQ DLX                    | 🔲     |
 | Idempotência no consumidor  | Worker + Redis                  | 🔲     |
-| `BackgroundService`         | `NotificationConsumer`          | 🔲     |
+| `BackgroundService`         | `NotificationConsumer`          | ✅     |
+
+✅ = concluído · 🟡 = implementado, mas sem as garantias que a fase final exige · 🔲 = não iniciado. Detalhes em `docs/architecture/current-state.md`.
 
 ---
 
@@ -101,17 +103,19 @@ Marque conforme o laboratório avançar.
 - [x] Referências Api/Worker → Contracts
 - [x] `RabbitMQ.Client` 7.x
 - [x] Docker Compose com RabbitMQ 4
-- [ ] Contratos de eventos
-- [ ] Publisher na API
-- [ ] Consumer no Worker
+- [x] Contratos de eventos
+- [x] Publisher na API
+- [x] Consumer no Worker
 
 ### Fase 1 — Publish / Consume
 
-- [ ] `EventMessage` + eventos de domínio
-- [ ] Endpoints HTTP (`202 Accepted`)
-- [ ] Exchange `direct` + queue durable + binding
-- [ ] Consumer com QoS, ACK e NACK
-- [ ] Provider fake de notificação (console)
+- [x] `EventMessage` + eventos de domínio
+- [x] Endpoints HTTP (`202 Accepted`)
+- [x] Exchange `direct` + queue durable + binding
+- [x] Consumer com QoS, ACK e NACK
+- [x] Provider fake de notificação (console)
+
+Funcional, mas com pontas soltas conhecidas (inicialização bloqueante do publisher, Worker não declara a própria fila, payload tipado como `object`) — ver `docs/architecture/current-state.md` para o detalhamento técnico.
 
 ### Fase 2 — Confiabilidade
 
@@ -137,7 +141,7 @@ Marque conforme o laboratório avançar.
 
 ## Como rodar (estado atual)
 
-Hoje o repositório é scaffold. A API e o Worker sobem, mas ainda não publicam nem consomem eventos.
+O fluxo básico de publish/consume já funciona: a API recebe eventos por HTTP e publica no RabbitMQ, o Worker consome, aplica ACK/NACK e despacha para o handler correspondente (com provider fake de notificação). Ainda não há PostgreSQL, Outbox, retry/DLQ, idempotência ou testes — ver `docs/architecture/current-state.md` para o estado real detalhado.
 
 ### Infra
 
