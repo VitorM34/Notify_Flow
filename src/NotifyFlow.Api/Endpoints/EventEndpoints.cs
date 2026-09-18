@@ -1,4 +1,9 @@
+using NotifyFlow.Api.Features.Events;
+using NotifyFlow.Api.Features.Events.ConfirmOrder;
+using NotifyFlow.Api.Features.Events.RegisterUser;
+using NotifyFlow.Api.Features.Events.RequestPasswordReset;
 using NotifyFlow.Api.Messaging;
+using NotifyFlow.Api.Validation;
 using NotifyFlow.Contracts;
 using NotifyFlow.Contracts.Events;
 
@@ -9,7 +14,7 @@ public static class EventEndpoints
     public static void MapEventEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/events/user-registered", async (
-            UserRegisteredRequest request,
+            RegisterUserRequest request,
             IRabbitMqPublisher publisher,
             CancellationToken cancellationToken) =>
         {
@@ -22,11 +27,12 @@ public static class EventEndpoints
 
             await publisher.PublishAsync(message, cancellationToken);
 
-            return Results.Accepted("/events", new { message.EventId, message.CorrelationId });
-        });
+            return TypedResults.Accepted("/events", new EventAcceptedResponse(message.EventId, message.CorrelationId));
+        })
+        .AddEndpointFilter<ValidationFilter<RegisterUserRequest>>();
 
         app.MapPost("/events/password-reset", async (
-            PasswordResetRequest request,
+            RequestPasswordResetRequest request,
             IRabbitMqPublisher publisher,
             CancellationToken cancellationToken) =>
         {
@@ -39,11 +45,12 @@ public static class EventEndpoints
 
             await publisher.PublishAsync(message, cancellationToken);
 
-            return Results.Accepted("/events", new { message.EventId, message.CorrelationId });
-        });
+            return TypedResults.Accepted("/events", new EventAcceptedResponse(message.EventId, message.CorrelationId));
+        })
+        .AddEndpointFilter<ValidationFilter<RequestPasswordResetRequest>>();
 
         app.MapPost("/events/order-confirmed", async (
-            OrderConfirmedRequest request,
+            ConfirmOrderRequest request,
             IRabbitMqPublisher publisher,
             CancellationToken cancellationToken) =>
         {
@@ -56,11 +63,8 @@ public static class EventEndpoints
 
             await publisher.PublishAsync(message, cancellationToken);
 
-            return Results.Accepted("/events", new { message.EventId, message.CorrelationId });
-        });
+            return TypedResults.Accepted("/events", new EventAcceptedResponse(message.EventId, message.CorrelationId));
+        })
+        .AddEndpointFilter<ValidationFilter<ConfirmOrderRequest>>();
     }
 }
-
-public sealed record UserRegisteredRequest(Guid UserId, string Email, string Name);
-public sealed record PasswordResetRequest(Guid UserId, string Email, string ResetToken);
-public sealed record OrderConfirmedRequest(Guid OrderId, Guid UserId, string Email, decimal Total);
