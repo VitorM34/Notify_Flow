@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NotifyFlow.Contracts;
 using NotifyFlow.Worker.Handlers;
 using RabbitMQ.Client;
@@ -11,7 +12,8 @@ namespace NotifyFlow.Worker.Messaging;
 
 public sealed class NotificationConsumer : BackgroundService
 {
-    private readonly IConfiguration _configuration;
+    private readonly RabbitMqOptions _options;
+    private readonly RabbitMqTopology _topology;
     private readonly HandlerDispatcher _dispatcher;
     private readonly ILogger<NotificationConsumer> _logger;
 
@@ -19,18 +21,17 @@ public sealed class NotificationConsumer : BackgroundService
     private IChannel? _channel;
 
     public NotificationConsumer(
-        IConfiguration configuration,
+        IOptions<RabbitMqOptions> options,
         HandlerDispatcher dispatcher,
         ILogger<NotificationConsumer> logger)
     {
-        _configuration = configuration;
+        _options = options.Value;
+        _topology = new RabbitMqTopology(_options);
         _dispatcher = dispatcher;
         _logger = logger;
     }
 
     private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
-
-    private string QueueName => _configuration["RabbitMq:QueueName"]!;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -72,10 +73,10 @@ public sealed class NotificationConsumer : BackgroundService
             }
         };
 
-        await _channel!.BasicQosAsync(prefetchSize: 0, prefetchCount: 1, global: false);
+        await _channel!.BasicQosAsync(prefetchSize: 0, prefetchCount: _options.PrefetchCount, global: false);
 
         await _channel!.BasicConsumeAsync(
-            queue: QueueName,
+            queue: _topology.QueueName,
             autoAck: false,
             consumer: consumer,
             cancellationToken: stoppingToken);
@@ -87,10 +88,10 @@ public sealed class NotificationConsumer : BackgroundService
     {
         var factory = new ConnectionFactory
         {
-            HostName = _configuration["RabbitMq:Host"]!,
-            Port = int.Parse(_configuration["RabbitMq:Port"]!),
-            UserName = _configuration["RabbitMq:Username"]!,
-            Password = _configuration["RabbitMq:Password"]!
+            HostName = _options.Host,
+            Port = _options.Port,
+            UserName = _options.Username,
+            Password = _options.Password
         };
 
         var attempt = 0;
@@ -125,53 +126,48 @@ public sealed class NotificationConsumer : BackgroundService
 
     private async Task DeclareTopologyAsync(IChannel channel, CancellationToken cancellationToken)
     {
-        var exchangeName = _configuration["RabbitMq:ExchangeName"]!;
-        var routingKey = _configuration["RabbitMq:RoutingKey"]!;
-        var deadLetterExchangeName = _configuration["RabbitMq:DeadLetterExchangeName"]!;
-        var deadLetterQueueName = _configuration["RabbitMq:DeadLetterQueueName"]!;
-
         await channel.ExchangeDeclareAsync(
-            exchange: exchangeName,
+            exchange: _topology.ExchangeName,
             type: ExchangeType.Direct,
             durable: true,
             autoDelete: false,
             cancellationToken: cancellationToken);
 
         await channel.ExchangeDeclareAsync(
-            exchange: deadLetterExchangeName,
+            exchange: _topology.DeadLetterExchangeName,
             type: ExchangeType.Direct,
             durable: true,
             autoDelete: false,
             cancellationToken: cancellationToken);
 
         await channel.QueueDeclareAsync(
-            queue: deadLetterQueueName,
+            queue: _topology.DeadLetterQueueName,
             durable: true,
             exclusive: false,
             autoDelete: false,
             cancellationToken: cancellationToken);
 
         await channel.QueueBindAsync(
-            queue: deadLetterQueueName,
-            exchange: deadLetterExchangeName,
-            routingKey: routingKey,
+            queue: _topology.DeadLetterQueueName,
+            exchange: _topology.DeadLetterExchangeName,
+            routingKey: _topology.RoutingKey,
             cancellationToken: cancellationToken);
 
         await channel.QueueDeclareAsync(
-            queue: QueueName,
+            queue: _topology.QueueName,
             durable: true,
             exclusive: false,
             autoDelete: false,
             arguments: new Dictionary<string, object?>
             {
-                ["x-dead-letter-exchange"] = deadLetterExchangeName
+                ["x-dead-letter-exchange"] = _topology.DeadLetterExchangeName
             },
             cancellationToken: cancellationToken);
 
         await channel.QueueBindAsync(
-            queue: QueueName,
-            exchange: exchangeName,
-            routingKey: routingKey,
+            queue: _topology.QueueName,
+            exchange: _topology.ExchangeName,
+            routingKey: _topology.RoutingKey,
             cancellationToken: cancellationToken);
     }
 

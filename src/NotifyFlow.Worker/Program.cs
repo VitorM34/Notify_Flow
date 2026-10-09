@@ -4,6 +4,8 @@ using NotifyFlow.Worker.Providers;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
+
 builder.Services.AddSingleton<INotificationProvider, FakeNotificationProvider>();
 
 builder.Services.AddSingleton<INotificationHandler, UserRegisteredHandler>();
