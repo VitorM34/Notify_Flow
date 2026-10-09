@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using NotifyFlow.Contracts;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -10,80 +11,36 @@ public sealed class RabbitMqPublisher : IRabbitMqPublisher, IAsyncDisposable
 {
     private readonly IConnection _connection;
     private readonly IChannel _channel;
-    private readonly string _exchangeName;
-    private readonly string _routingKey;
+    private readonly RabbitMqTopology _topology;
     private readonly ILogger<RabbitMqPublisher> _logger;
 
     private RabbitMqPublisher(
         IConnection connection,
         IChannel channel,
-        string exchangeName,
-        string routingKey,
+        RabbitMqTopology topology,
         ILogger<RabbitMqPublisher> logger)
     {
         _connection = connection;
         _channel = channel;
-        _exchangeName = exchangeName;
-        _routingKey = routingKey;
+        _topology = topology;
         _logger = logger;
     }
 
-    public static async Task<RabbitMqPublisher> CreateAsync(IConfiguration configuration, ILogger<RabbitMqPublisher> logger)
+    public static async Task<RabbitMqPublisher> CreateAsync(IOptions<RabbitMqOptions> options, ILogger<RabbitMqPublisher> logger)
     {
+        var rabbitMqOptions = options.Value;
+        var topology = new RabbitMqTopology(rabbitMqOptions);
+
         var factory = new ConnectionFactory
         {
-            HostName = configuration["RabbitMq:Host"]!,
-            Port = int.Parse(configuration["RabbitMq:Port"]!),
-            UserName = configuration["RabbitMq:Username"]!,
-            Password = configuration["RabbitMq:Password"]!
+            HostName = rabbitMqOptions.Host,
+            Port = rabbitMqOptions.Port,
+            UserName = rabbitMqOptions.Username,
+            Password = rabbitMqOptions.Password
         };
 
         var connection = await factory.CreateConnectionAsync();
         var channel = await connection.CreateChannelAsync();
-
-        var exchangeName = configuration["RabbitMq:ExchangeName"]!;
-        var routingKey = configuration["RabbitMq:RoutingKey"]!;
-        var queueName = configuration["RabbitMq:QueueName"]!;
-        var deadLetterExchangeName = configuration["RabbitMq:DeadLetterExchangeName"]!;
-        var deadLetterQueueName = configuration["RabbitMq:DeadLetterQueueName"]!;
-
-        await channel.ExchangeDeclareAsync(
-            exchange: exchangeName,
-            type: ExchangeType.Direct,
-            durable: true,
-            autoDelete: false);
-
-        await channel.ExchangeDeclareAsync(
-            exchange: deadLetterExchangeName,
-            type: ExchangeType.Direct,
-            durable: true,
-            autoDelete: false);
-
-        await channel.QueueDeclareAsync(
-            queue: deadLetterQueueName,
-            durable: true,
-            exclusive: false,
-            autoDelete: false);
-
-        await channel.QueueBindAsync(
-            queue: deadLetterQueueName,
-            exchange: deadLetterExchangeName,
-            routingKey: routingKey);
-
-        await channel.QueueDeclareAsync(
-            queue: queueName,
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: new Dictionary<string, object?>
-            {
-                ["x-dead-letter-exchange"] = deadLetterExchangeName
-            });
-
-        await channel.QueueBindAsync(
-            queue: queueName,
-            exchange: exchangeName,
-            routingKey: routingKey);
 
         channel.BasicReturnAsync += (_, args) =>
         {
@@ -94,7 +51,7 @@ public sealed class RabbitMqPublisher : IRabbitMqPublisher, IAsyncDisposable
             return Task.CompletedTask;
         };
 
-        return new RabbitMqPublisher(connection, channel, exchangeName, routingKey, logger);
+        return new RabbitMqPublisher(connection, channel, topology, logger);
     }
 
     public async Task PublishAsync(EventMessage message, CancellationToken cancellationToken = default)
@@ -111,8 +68,8 @@ public sealed class RabbitMqPublisher : IRabbitMqPublisher, IAsyncDisposable
         };
 
         await _channel.BasicPublishAsync(
-            exchange: _exchangeName,
-            routingKey: _routingKey,
+            exchange: _topology.ExchangeName,
+            routingKey: _topology.RoutingKey,
             mandatory: true,
             basicProperties: properties,
             body: body,
