@@ -21,8 +21,7 @@ public sealed class PasswordResetRequestedHandler : INotificationHandler
 
     public async Task HandleAsync(EventMessage message, CancellationToken cancellationToken = default)
     {
-        var payload = JsonSerializer.Deserialize<PasswordResetRequestedEvent>(
-            JsonSerializer.Serialize(message.Payload))
+        var payload = ((JsonElement)message.Payload).Deserialize<PasswordResetRequestedEvent>()
             ?? throw new InvalidOperationException($"Invalid payload for {EventType}");
 
         _logger.LogInformation(
