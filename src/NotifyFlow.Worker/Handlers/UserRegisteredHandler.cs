@@ -21,8 +21,7 @@ public sealed class UserRegisteredHandler : INotificationHandler
 
     public async Task HandleAsync(EventMessage message, CancellationToken cancellationToken = default)
     {
-        var payload = JsonSerializer.Deserialize<UserRegisteredEvent>(
-            JsonSerializer.Serialize(message.Payload))
+        var payload = ((JsonElement)message.Payload).Deserialize<UserRegisteredEvent>()
             ?? throw new InvalidOperationException($"Invalid payload for {EventType}");
 
         _logger.LogInformation(

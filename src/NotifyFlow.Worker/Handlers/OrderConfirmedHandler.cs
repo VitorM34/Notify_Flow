@@ -21,8 +21,7 @@ public sealed class OrderConfirmedHandler : INotificationHandler
 
     public async Task HandleAsync(EventMessage message, CancellationToken cancellationToken = default)
     {
-        var payload = JsonSerializer.Deserialize<OrderConfirmedEvent>(
-            JsonSerializer.Serialize(message.Payload))
+        var payload = ((JsonElement)message.Payload).Deserialize<OrderConfirmedEvent>()
             ?? throw new InvalidOperationException($"Invalid payload for {EventType}");
 
         _logger.LogInformation(
