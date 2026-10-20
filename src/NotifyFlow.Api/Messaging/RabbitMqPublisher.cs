@@ -40,7 +40,18 @@ public sealed class RabbitMqPublisher : IRabbitMqPublisher, IAsyncDisposable
         };
 
         var connection = await factory.CreateConnectionAsync();
-        var channel = await connection.CreateChannelAsync();
+
+        // Publisher confirms (E04-T03): habilitados via CreateChannelOptions, conforme a API
+        // atual do RabbitMQ.Client v7 — ver https://www.rabbitmq.com/client-libraries/dotnet-api-guide
+        // (seção "Publisher Confirms") e https://www.rabbitmq.com/tutorials/tutorial-seven-dotnet.
+        // Com publisherConfirmationsEnabled + publisherConfirmationTrackingEnabled ligados, o
+        // próprio client passa a aguardar o ack/nack do broker dentro do await a BasicPublishAsync
+        // (estratégia "individual publishing" do tutorial 7) — se a mensagem for nack-ada ou
+        // devolvida (returned), o método lança exceção em vez de retornar normalmente.
+        var channel = await connection.CreateChannelAsync(
+            new CreateChannelOptions(
+                publisherConfirmationsEnabled: true,
+                publisherConfirmationTrackingEnabled: true));
 
         channel.BasicReturnAsync += (_, args) =>
         {
@@ -70,6 +81,30 @@ public sealed class RabbitMqPublisher : IRabbitMqPublisher, IAsyncDisposable
         await _channel.BasicPublishAsync(
             exchange: _topology.ExchangeName,
             routingKey: _topology.RoutingKey,
+            mandatory: true,
+            basicProperties: properties,
+            body: body,
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task PublishRawAsync(string routingKey, string payloadJson, Guid eventId, CancellationToken cancellationToken = default)
+    {
+        var body = Encoding.UTF8.GetBytes(payloadJson);
+
+        var properties = new BasicProperties
+        {
+            DeliveryMode = DeliveryModes.Persistent,
+            ContentType = "application/json",
+            MessageId = eventId.ToString()
+        };
+
+        // Com confirms habilitados no channel (ver CreateAsync), este await só retorna depois
+        // que o broker confirmar (ack) o recebimento/persistência da mensagem — se o broker
+        // nack-ar ou devolver (basic.return, dado mandatory: true) a mensagem, uma exceção é
+        // lançada aqui e propagada para o OutboxPublisher, que trata como falha de publicação.
+        await _channel.BasicPublishAsync(
+            exchange: _topology.ExchangeName,
+            routingKey: routingKey,
             mandatory: true,
             basicProperties: properties,
             body: body,
