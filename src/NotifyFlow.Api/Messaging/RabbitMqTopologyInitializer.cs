@@ -73,8 +73,50 @@ public sealed class RabbitMqTopologyInitializer : IRabbitMqTopologyInitializer
             routingKey: topology.RoutingKey,
             cancellationToken: cancellationToken);
 
+        await channel.ExchangeDeclareAsync(
+            exchange: RabbitMqRetryTopology.RetryExchangeName,
+            type: ExchangeType.Direct,
+            durable: true,
+            autoDelete: false,
+            cancellationToken: cancellationToken);
+
+        await DeclareRetryQueueAsync(
+            channel, topology, RabbitMqRetryTopology.RetryQueueName1, RabbitMqRetryTopology.RetryRoutingKey1, RabbitMqRetryTopology.RetryTtlMs1, cancellationToken);
+        await DeclareRetryQueueAsync(
+            channel, topology, RabbitMqRetryTopology.RetryQueueName2, RabbitMqRetryTopology.RetryRoutingKey2, RabbitMqRetryTopology.RetryTtlMs2, cancellationToken);
+        await DeclareRetryQueueAsync(
+            channel, topology, RabbitMqRetryTopology.RetryQueueName3, RabbitMqRetryTopology.RetryRoutingKey3, RabbitMqRetryTopology.RetryTtlMs3, cancellationToken);
+
         _logger.LogInformation(
-            "Topologia RabbitMQ inicializada | Exchange: {Exchange} | Queue: {Queue} | RoutingKey: {RoutingKey} | DeadLetterExchange: {DeadLetterExchange} | DeadLetterQueue: {DeadLetterQueue}",
-            topology.ExchangeName, topology.QueueName, topology.RoutingKey, topology.DeadLetterExchangeName, topology.DeadLetterQueueName);
+            "Topologia RabbitMQ inicializada | Exchange: {Exchange} | Queue: {Queue} | RoutingKey: {RoutingKey} | DeadLetterExchange: {DeadLetterExchange} | DeadLetterQueue: {DeadLetterQueue} | RetryExchange: {RetryExchange}",
+            topology.ExchangeName, topology.QueueName, topology.RoutingKey, topology.DeadLetterExchangeName, topology.DeadLetterQueueName, RabbitMqRetryTopology.RetryExchangeName);
+    }
+
+    private static async Task DeclareRetryQueueAsync(
+        IChannel channel,
+        RabbitMqTopology topology,
+        string queueName,
+        string retryRoutingKey,
+        int ttlMs,
+        CancellationToken cancellationToken)
+    {
+        await channel.QueueDeclareAsync(
+            queue: queueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: new Dictionary<string, object?>
+            {
+                ["x-message-ttl"] = ttlMs,
+                ["x-dead-letter-exchange"] = topology.ExchangeName,
+                ["x-dead-letter-routing-key"] = topology.RoutingKey
+            },
+            cancellationToken: cancellationToken);
+
+        await channel.QueueBindAsync(
+            queue: queueName,
+            exchange: RabbitMqRetryTopology.RetryExchangeName,
+            routingKey: retryRoutingKey,
+            cancellationToken: cancellationToken);
     }
 }
