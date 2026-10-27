@@ -25,13 +25,17 @@ public sealed class PasswordResetRequestedHandler : INotificationHandler
             ?? throw new InvalidOperationException($"Invalid payload for {EventType}");
 
         _logger.LogInformation(
-            "Handling {EventType} | EventId: {EventId} | UserId: {UserId}",
-            EventType, message.EventId, payload.UserId);
+            "Handling {EventType} | EventId: {EventId} | CorrelationId: {CorrelationId} | UserId: {UserId}",
+            EventType, message.EventId, message.CorrelationId, payload.UserId);
 
         await _provider.SendAsync(
             recipient: payload.Email,
             subject: "Password Reset",
             body: $"Your reset token is: {payload.ResetToken}",
             cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Notificação enviada | EventType: {EventType} | EventId: {EventId}",
+            EventType, message.EventId);
     }
 }
