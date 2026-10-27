@@ -13,9 +13,10 @@ public sealed class FakeNotificationProvider : INotificationProvider
 
     public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken = default)
     {
+        // Body nunca entra no log: pode conter dado sensível (ex.: ResetToken em texto puro).
         _logger.LogInformation(
-            "[FAKE] Notification sent | Recipient: {Recipient} | Subject: {Subject} | Body: {Body}",
-            recipient, subject, body);
+            "[FAKE] Notification sent | Recipient: {Recipient} | Subject: {Subject}",
+            recipient, subject);
 
         return Task.CompletedTask;
     }
