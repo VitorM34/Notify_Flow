@@ -20,9 +20,15 @@ public sealed class HandlerDispatcher
     {
         if (!_handlers.TryGetValue(message.EventType, out var handler))
         {
-            _logger.LogWarning("No handler found for event type {EventType}", message.EventType);
+            _logger.LogWarning(
+                "No handler found for event type {EventType} | EventId: {EventId} | CorrelationId: {CorrelationId}",
+                message.EventType, message.EventId, message.CorrelationId);
             return;
         }
+
+        _logger.LogInformation(
+            "Despachando evento | EventType: {EventType} | EventId: {EventId} | CorrelationId: {CorrelationId}",
+            message.EventType, message.EventId, message.CorrelationId);
 
         await handler.HandleAsync(message, cancellationToken);
     }

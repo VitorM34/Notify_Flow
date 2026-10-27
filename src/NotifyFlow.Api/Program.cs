@@ -4,6 +4,7 @@ using NotifyFlow.Api.Endpoints;
 using NotifyFlow.Api.ErrorHandling;
 using NotifyFlow.Api.Features.Events.CreateEvent;
 using NotifyFlow.Api.Messaging;
+using NotifyFlow.Api.Observability;
 using NotifyFlow.Api.Outbox;
 using NotifyFlow.Api.Persistence;
 
@@ -41,9 +42,15 @@ builder.Services.Configure<OutboxPublisherOptions>(builder.Configuration.GetSect
 builder.Services.AddSingleton<IOutboxPublisher, OutboxPublisher>();
 builder.Services.AddHostedService<OutboxPublisherService>();
 
+builder.Services.AddHealthChecks()
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq")
+    .AddCheck<PostgresHealthCheck>("postgres");
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
+
+app.MapHealthChecks("/health");
 
 using (var scope = app.Services.CreateScope())
 {
@@ -54,3 +61,8 @@ using (var scope = app.Services.CreateScope())
 app.MapEventEndpoints();
 
 app.Run();
+
+// Expõe a classe Program (normalmente interna, gerada pelas top-level statements) para que
+// WebApplicationFactory<Program> funcione nos testes de integração (E06-T03) — padrão oficial
+// para testar Minimal APIs (https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests).
+public partial class Program;

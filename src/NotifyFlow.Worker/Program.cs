@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NotifyFlow.Worker.Failures;
 using NotifyFlow.Worker.Handlers;
 using NotifyFlow.Worker.Messaging;
+using NotifyFlow.Worker.Observability;
 using NotifyFlow.Worker.Persistence;
 using NotifyFlow.Worker.Providers;
 
@@ -29,6 +31,16 @@ builder.Services.AddSingleton<INotificationHandler, OrderConfirmedHandler>();
 builder.Services.AddSingleton<HandlerDispatcher>();
 
 builder.Services.AddHostedService<NotificationConsumer>();
+
+builder.Services.AddHealthChecks()
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq")
+    .AddCheck<PostgresHealthCheck>("postgres");
+
+builder.Services.Configure<HealthCheckPublisherOptions>(options =>
+{
+    options.Period = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddSingleton<IHealthCheckPublisher, LoggingHealthCheckPublisher>();
 
 var host = builder.Build();
 host.Run();

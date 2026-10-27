@@ -70,8 +70,8 @@ public sealed class NotificationConsumer : BackgroundService
                 }
 
                 _logger.LogInformation(
-                    "Message received | EventType: {EventType} | EventId: {EventId}",
-                    message.EventType, message.EventId);
+                    "Message received | EventType: {EventType} | EventId: {EventId} | CorrelationId: {CorrelationId}",
+                    message.EventType, message.EventId, message.CorrelationId);
 
                 using (var scope = _scopeFactory.CreateScope())
                 {
@@ -80,8 +80,8 @@ public sealed class NotificationConsumer : BackgroundService
                     if (await processedEventStore.HasProcessedAsync(message.EventId, ConsumerName, stoppingToken))
                     {
                         _logger.LogInformation(
-                            "Evento já processado por este consumidor — pulando reprocessamento (idempotência) | EventId: {EventId}",
-                            message.EventId);
+                            "Evento já processado por este consumidor — pulando reprocessamento (idempotência) | EventId: {EventId} | CorrelationId: {CorrelationId}",
+                            message.EventId, message.CorrelationId);
 
                         await _channel!.BasicAckAsync(args.DeliveryTag, multiple: false);
                         return;
@@ -127,8 +127,8 @@ public sealed class NotificationConsumer : BackgroundService
 
             _logger.LogWarning(
                 exception,
-                "Falha transitória | EventId: {EventId} | Classificação: {Classification} | Tentativa: {Attempt}/{MaxAttempts} | Destino: retry queue {NextAttempt}",
-                message?.EventId, classification, nextAttempt, _retryPolicy.MaxAttempts, nextAttempt);
+                "Falha transitória | EventId: {EventId} | CorrelationId: {CorrelationId} | Classificação: {Classification} | Tentativa: {Attempt}/{MaxAttempts} | Destino: retry queue {NextAttempt}",
+                message?.EventId, message?.CorrelationId, classification, nextAttempt, _retryPolicy.MaxAttempts, nextAttempt);
 
             await PublishToRetryQueueAsync(args.Body, nextAttempt);
             await _channel!.BasicAckAsync(args.DeliveryTag, multiple: false);
@@ -141,8 +141,8 @@ public sealed class NotificationConsumer : BackgroundService
 
         _logger.LogError(
             exception,
-            "Falha ao processar mensagem | EventId: {EventId} | Classificação: {Classification} | Tentativa: {Attempt} | Destino: DLQ ({Reason})",
-            message?.EventId, classification, currentAttempt, reason);
+            "Falha ao processar mensagem | EventId: {EventId} | CorrelationId: {CorrelationId} | Classificação: {Classification} | Tentativa: {Attempt} | Destino: DLQ ({Reason})",
+            message?.EventId, message?.CorrelationId, classification, currentAttempt, reason);
 
         await _channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: false);
     }

@@ -25,13 +25,17 @@ public sealed class OrderConfirmedHandler : INotificationHandler
             ?? throw new InvalidOperationException($"Invalid payload for {EventType}");
 
         _logger.LogInformation(
-            "Handling {EventType} | EventId: {EventId} | OrderId: {OrderId}",
-            EventType, message.EventId, payload.OrderId);
+            "Handling {EventType} | EventId: {EventId} | CorrelationId: {CorrelationId} | OrderId: {OrderId}",
+            EventType, message.EventId, message.CorrelationId, payload.OrderId);
 
         await _provider.SendAsync(
             recipient: payload.Email,
             subject: "Order Confirmed",
             body: $"Your order {payload.OrderId} was confirmed. Total: {payload.Total:C}",
             cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Notificação enviada | EventType: {EventType} | EventId: {EventId}",
+            EventType, message.EventId);
     }
 }
