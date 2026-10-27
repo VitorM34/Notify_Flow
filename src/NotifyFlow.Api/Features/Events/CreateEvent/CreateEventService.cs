@@ -1,4 +1,5 @@
 using System.Text.Json;
+using NotifyFlow.Api.Observability;
 using NotifyFlow.Api.Persistence;
 using NotifyFlow.Api.Persistence.Entities;
 
@@ -13,10 +14,12 @@ namespace NotifyFlow.Api.Features.Events.CreateEvent;
 public sealed class CreateEventService : ICreateEventService
 {
     private readonly NotifyFlowApiDbContext _dbContext;
+    private readonly ILogger<CreateEventService> _logger;
 
-    public CreateEventService(NotifyFlowApiDbContext dbContext)
+    public CreateEventService(NotifyFlowApiDbContext dbContext, ILogger<CreateEventService> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task<EventAcceptedResponse> CreateAsync(CreateEventCommand command, CancellationToken cancellationToken = default)
@@ -67,6 +70,11 @@ public sealed class CreateEventService : ICreateEventService
         _dbContext.OutboxMessages.Add(outboxMessage);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        using var _ = _logger.BeginEventScope(message);
+        _logger.LogInformation(
+            "Evento persistido na outbox | EventId: {EventId} | CorrelationId: {CorrelationId} | RoutingKey: {RoutingKey}",
+            message.EventId, message.CorrelationId, command.RoutingKey);
 
         return new EventAcceptedResponse(message.EventId, message.CorrelationId);
     }
