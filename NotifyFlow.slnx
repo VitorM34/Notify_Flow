@@ -4,4 +4,9 @@
     <Project Path="src/NotifyFlow.Contracts/NotifyFlow.Contracts.csproj" />
     <Project Path="src/NotifyFlow.Worker/NotifyFlow.Worker.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NotifyFlow.Api.Tests/NotifyFlow.Api.Tests.csproj" />
+    <Project Path="tests/NotifyFlow.IntegrationTests/NotifyFlow.IntegrationTests.csproj" />
+    <Project Path="tests/NotifyFlow.Worker.Tests/NotifyFlow.Worker.Tests.csproj" />
+  </Folder>
 </Solution>
